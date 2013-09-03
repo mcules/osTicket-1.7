@@ -1514,6 +1514,81 @@ class Ticket {
                 $alert);
     }
 
+	 //merge this ticket to another ticket
+	function mergeTicket($keepticket,$notifycustomer,$email,$status) {
+		global $cfg;
+		global $thisstaff;
+        // update these tables...:
+        // ost_ticket_attachment
+        $sql1= 'UPDATE '.TICKET_ATTACHMENT_TABLE.' SET  '.
+                ' ticket_id='.db_input(Format::striptags($keepticket)).
+	        ' WHERE '.
+                'ticket_id='.db_input($this->getId());
+        // ost_ticket_message
+        $sql2= 'UPDATE '.TICKET_THREAD_TABLE.' SET  '.
+                ' ticket_id='.db_input(Format::striptags($keepticket)).
+	        ' WHERE '.
+                'ticket_id='.db_input($this->getId());
+        $sql5= 'INSERT INTO '.TICKET_THREAD_TABLE.' SET  '.
+                ' ticket_id='.db_input($this->getId()).
+                ', source="Web"'.
+                ', created=NOW()'.
+                ', body=CONCAT("Merged with ticket ",'.
+                '  ( SELECT ticketID FROM '.TICKET_TABLE.' WHERE ticket_id='.db_input(Format::striptags($keepticket)).' ))'.
+                ';';
+        // close and unassign this ticket (ost_ticket)
+        $sql6 = 'UPDATE '.TICKET_TABLE.' SET  '.
+                ' staff_id = 0'.
+                ', status = "closed"'.
+                ', updated=NOW()'.
+                ', closed=NOW()'.
+	        ' WHERE '.
+                'ticket_id='.db_input($this->getId());
+
+        if((db_query($sql1)) && (db_query($sql2)) && (db_query($sql6)) ) {
+            if ( db_query($sql5) && $msgid=db_insert_id() ) {
+				$sql7= 'INSERT INTO '.TICKET_THREAD_TABLE.' SET  '.
+					' ticket_id='.db_input($this->getId()).
+					', staff_id='.db_input($thisstaff->getId()).
+					', poster='.db_input($thisstaff->getName()).
+					', ip_address=""'.
+					', created=NOW()'.
+					', body=CONCAT("Ticket closed for merging reason ",'.
+					'  ( SELECT ticketID FROM '.TICKET_TABLE.' WHERE ticket_id='.db_input(Format::striptags($keepticket)).' ))'.
+					';';
+				db_query($sql7);
+
+				$sqlt = 'SELECT ticketID FROM '.TICKET_TABLE.' WHERE ticket_id='.db_input(Format::striptags($keepticket));
+				$rest = db_query($sqlt);
+				if($rest && db_num_rows($rest)) {
+					list($ticketID)=db_fetch_row($rest);
+					$sqlm = 'SELECT id FROM '.TICKET_THREAD_TABLE.' m, '.TICKET_TABLE.' t WHERE t.ticketID='.$ticketID.' AND m.ticket_id=t.ticket_id ORDER BY id ASC LIMIT 1';
+				}
+				$resm = db_query($sqlm);
+				if($resm && db_num_rows($resm)) {
+					list($msgid) = db_fetch_row($resm);
+				}
+
+				$sql8= 'INSERT INTO '.TICKET_THREAD_TABLE.' SET  '.
+					' ticket_id='.db_input(Format::striptags($keepticket)).
+					', staff_id='.db_input($thisstaff->getId()).
+					', poster='.db_input($thisstaff->getName()).
+					', ip_address=""'.
+					', created=NOW()'.
+					', body=CONCAT("Ticket merged from ticket ",'.$this->getExtId().')';
+				db_query($sql8);
+			}
+
+			if ($notifycustomer && ($status!='closed')) {
+				$helpdesk_email=$cfg->getDefaultEmail();
+				$helpdesk_email->send($email, 'Merging Ticket #'.$this->getExtId().' to Ticket #'.$ticketID, 'Your ticket #'.$this->getExtId().' has been merged to ticket #'.$ticketID.'.');
+			}
+			return true;
+		} else {
+			return false;
+		}
+    }
+
     function postNote($vars, &$errors, $poster, $alert=true) {
         global $cfg, $thisstaff;
 

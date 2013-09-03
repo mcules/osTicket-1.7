@@ -107,6 +107,17 @@ if($_POST && !$errors):
                 }
             }
             break;
+		case 'mergeticket':
+            if( $ticket->mergeTicket($_POST['keepticket'],
+                         $_POST['notifycustomer'],
+                     $_POST['email'],
+                     $_POST['status'] )){
+                $title='Merged Tickets';
+                $msg='Ticket Has Been Sucessfully Merged.';
+            }else{
+                $errors['err']=$errors['err']?$errors['err']:'Unable to merge tickets or the ticket has been closed.';
+            }
+            break;
         case 'assign':
 
              if(!$thisstaff->canAssignTickets())

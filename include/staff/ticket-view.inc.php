@@ -118,6 +118,49 @@ if($ticket->isOverdue())
         </td>
     </tr>
 </table>
+<table class="mergetickets" cellspacing="0" cellpadding="0" width="940" border="0">
+	<tr>
+		<td width="50">
+			<table border="0" cellspacing="" cellpadding="4" width="100%">
+				<tr>
+					<th width="100">Merge Ticket?:</th>
+					<?php
+					$sql = 'SELECT ticket_id, concat(ticketid,": ",subject) AS label FROM '.TICKET_TABLE.' WHERE email=' .
+							'(SELECT email FROM ost_ticket WHERE ticket_id = '.$id.') AND status ' .
+							'= "open" AND ticket_id <> '.$id.' ORDER BY `created` DESC ';
+					$lookuptickets = db_query($sql);
+					if (db_num_rows($lookuptickets)) {
+					?>
+					<p>
+						<form action="tickets.php?id=<?=$id?>#mergeticket" name="notes" method="post" enctype="multipart/form-data">
+							<?php csrf_token(); ?>
+							<input type="hidden" name="ticket_id" value="<?=$id?>">
+							<input type="hidden" name="a" value="mergeticket">
+							<input type="hidden" name="email" value="<?php echo $ticket->getEmail(); ?>">
+							<input type="hidden" name="status" value="<?php echo $ticket->getStatus(); ?>">
+							Merge this current ticket into ticket # <select id="keepticket" name="keepticket">
+							<?php
+							while (list($ticket_id,$label) = db_fetch_row($lookuptickets)) {
+								?>
+								<option value="<?=$ticket_id?>"><?=$label?></option>
+								<?
+							}?>
+							</select>
+							<div><input type="checkbox" value="1" name="notifycustomer"  />Send Email to Customer inform the Ticket Merging</div>
+							<div  style="margin-left: 50px; margin-top: 5px; margin-bottom: 10px;border: 0px;" align="left">
+								<input class="button" type='submit' value='Merge Ticket' />
+								<input class="button" type='reset' value='Reset' />
+								<input class="button" type='button' value='Cancel' onClick="history.go(-1)" />
+							</div>
+							<?php } else {
+								echo "Sorry, this ticket cannot be merged into another since there is no ticket has the same email address with this.";
+							} ?>
+						</form>
+					</p>
+				</div>
+				</tr>
+				<tr></tr>
+			</table>
 <table class="ticket_info" cellspacing="0" cellpadding="0" width="940" border="0">
     <tr>
         <td width="50">
